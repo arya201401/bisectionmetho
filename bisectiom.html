@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bisection Method</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --panel: #111827;
+      --border: #1e293b;
+      --accent: #38bdf8;
+      --accent2: #f472b6;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.3);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 2rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .card-title {
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    /* Equation selector */
+    .eq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .eq-btn {
+      background: rgba(56,189,248,0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .eq-btn:hover, .eq-btn.active {
+      border-color: var(--accent);
+      background: rgba(56,189,248,0.12);
+      color: var(--accent);
+    }
+    .eq-btn span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.68rem;
+      margin-top: 0.2rem;
+    }
+
+    /* Custom equation input */
+    .custom-eq {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .custom-eq.show { display: block; }
+    .custom-eq input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .custom-eq input:focus { border-color: var(--accent); }
+    .custom-eq small {
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      margin-top: 0.4rem;
+      display: block;
+    }
+
+    /* Input grid */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+    @media(max-width: 540px) { .input-grid { grid-template-columns: 1fr 1fr; } }
+
+    .field label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .field input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.65rem 0.9rem;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+
+    /* Run button */
+    .run-btn {
+      width: 100%;
+      margin-top: 1.2rem;
+      padding: 0.9rem;
+      background: linear-gradient(135deg, var(--accent), #0ea5e9);
+      border: none;
+      border-radius: 8px;
+      color: #0a0e1a;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .run-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .run-btn:active { transform: translateY(0); }
+
+    /* Result banner */
+    #result-banner {
+      display: none;
+      border-radius: 10px;
+      padding: 1rem 1.4rem;
+      margin-bottom: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      animation: fadeUp 0.4s ease both;
+    }
+    #result-banner.success {
+      display: block;
+      background: rgba(74,222,128,0.1);
+      border: 1px solid rgba(74,222,128,0.3);
+      color: var(--green);
+    }
+    #result-banner.error {
+      display: block;
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      color: var(--red);
+    }
+    #result-banner .root-val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      display: block;
+      margin-top: 0.3rem;
+    }
+
+    /* Stats row */
+    .stats {
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      animation: fadeUp 0.4s ease 0.1s both;
+    }
+    .stats.show { display: grid; }
+    @media(max-width:480px) { .stats { grid-template-columns: 1fr 1fr; } }
+
+    .stat-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-box .val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-box .lbl {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 0.2rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Iteration table */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+    }
+    thead th {
+      background: rgba(56,189,248,0.07);
+      padding: 0.75rem 1rem;
+      text-align: right;
+      color: var(--accent);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid var(--border);
+    }
+    thead th:first-child { text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(30,41,59,0.6);
+      transition: background 0.15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(56,189,248,0.04); }
+    tbody tr.root-row { background: rgba(74,222,128,0.06); }
+
+    td {
+      padding: 0.65rem 1rem;
+      text-align: right;
+      color: var(--text);
+    }
+    td:first-child {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+    td.pos { color: var(--green); }
+    td.neg { color: var(--red); }
+    td.root-mark { color: var(--yellow); font-weight: 700; }
+
+    /* Convergence bar */
+    .conv-wrap { margin-top: 1.5rem; }
+    .conv-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    .conv-bar-bg {
+      background: rgba(255,255,255,0.05);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    .conv-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.6s ease;
+    }
+
+    /* Animations */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="badge">Numerical Methods</div>
+    <h1>Bisection Method</h1>
+    <p>// root-finding via interval halving</p>
+  </header>
+
+  <!-- Equation Selection -->
+  <div class="card" style="animation-delay:0.05s">
+    <div class="card-title">Select Equation f(x)</div>
+    <div class="eq-grid">
+      <button class="eq-btn active" data-eq="0" onclick="selectEq(this)">
+        x³ − x − 2
+        <span>Root ≈ 1.5214</span>
+      </button>
+      <button class="eq-btn" data-eq="1" onclick="selectEq(this)">
+        x³ − 4x − 9
+        <span>Root ≈ 2.7065</span>
+      </button>
+      <button class="eq-btn" data-eq="2" onclick="selectEq(this)">
+        x² − 4
+        <span>Root = 2.0000</span>
+      </button>
+      <button class="eq-btn" data-eq="3" onclick="selectEq(this)">
+        cos(x) − x
+        <span>Root ≈ 0.7391</span>
+      </button>
+      <button class="eq-btn" data-eq="custom" onclick="selectEq(this)">
+        Custom f(x)
+        <span>Enter your own</span>
+      </button>
+    </div>
+    <div class="custom-eq" id="custom-eq-wrap">
+      <input type="text" id="custom-input" placeholder="e.g.  x*x*x - 2*x - 5" />
+      <small>Use: Math.sin(x), Math.cos(x), Math.pow(x,n), Math.exp(x), Math.log(x)</small>
+    </div>
+  </div>
+
+  <!-- Parameters -->
+  <div class="card" style="animation-delay:0.1s">
+    <div class="card-title">Parameters</div>
+    <div class="input-grid">
+      <div class="field">
+        <label>a (lower bound)</label>
+        <input type="number" id="inp-a" value="1" step="any"/>
+      </div>
+      <div class="field">
+        <label>b (upper bound)</label>
+        <input type="number" id="inp-b" value="2" step="any"/>
+      </div>
+      <div class="field">
+        <label>Error tolerance</label>
+        <input type="number" id="inp-err" value="0.0001" step="any"/>
+      </div>
+    </div>
+    <button class="run-btn" onclick="runBisection()">▶ Run Bisection</button>
+  </div>
+
+  <!-- Result Banner -->
+  <div id="result-banner"></div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats">
+    <div class="stat-box">
+      <div class="val" id="stat-root">—</div>
+      <div class="lbl">Root</div>
+    </div>
+    <div class="stat-box">
+      <div class="val" id="stat-iter">—</div>
+      <div class="lbl">Iterations</div>
+    </div>
+    <div class="stat-box">
+      <div class="val" id="stat-err">—</div>
+      <div class="lbl">Final Error</div>
+    </div>
+  </div>
+
+  <!-- Iteration Table -->
+  <div class="card hidden" id="table-card" style="animation-delay:0.15s">
+    <div class="card-title">Iteration Table</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Iter</th>
+            <th>a</th>
+            <th>b</th>
+            <th>c = (a+b)/2</th>
+            <th>f(a)</th>
+            <th>f(c)</th>
+            <th>|b−a|</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Convergence visual -->
+    <div class="conv-wrap" id="conv-wrap"></div>
+  </div>
+
+</div>
+
+<script>
+  // --- Equations ---
+  const equations = [
+    { label: "x³ − x − 2",   fn: x => Math.pow(x,3) - x - 2 },
+    { label: "x³ − 4x − 9",  fn: x => Math.pow(x,3) - 4*x - 9 },
+    { label: "x² − 4",       fn: x => Math.pow(x,2) - 4 },
+    { label: "cos(x) − x",   fn: x => Math.cos(x) - x },
+  ];
+
+  let selectedEq = 0;
+
+  function selectEq(btn) {
+    document.querySelectorAll('.eq-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedEq = btn.dataset.eq;
+    const wrap = document.getElementById('custom-eq-wrap');
+    wrap.classList.toggle('show', selectedEq === 'custom');
+  }
+
+  function getF() {
+    if (selectedEq === 'custom') {
+      const expr = document.getElementById('custom-input').value.trim();
+      if (!expr) throw new Error("Please enter a custom equation.");
+      return new Function('x', `with(Math){ return ${expr}; }`);
+    }
+    return equations[+selectedEq].fn;
+  }
+
+  function fmt(n, d=6) { return n.toFixed(d); }
+
+  function runBisection() {
+    const banner = document.getElementById('result-banner');
+    const stats  = document.getElementById('stats');
+    const tcard  = document.getElementById('table-card');
+    const tbody  = document.getElementById('table-body');
+    banner.className = '';
+    banner.style.display = 'none';
+    stats.classList.remove('show');
+    tcard.classList.add('hidden');
+    tbody.innerHTML = '';
+
+    let a = parseFloat(document.getElementById('inp-a').value);
+    let b = parseFloat(document.getElementById('inp-b').value);
+    let tol = parseFloat(document.getElementById('inp-err').value);
+
+    if (isNaN(a)||isNaN(b)||isNaN(tol)) {
+      showError("Please enter valid numbers for all fields."); return;
+    }
+    if (a >= b) {
+      showError("'a' must be less than 'b'."); return;
+    }
+
+    let f;
+    try { f = getF(); f(a); }
+    catch(e) { showError("Invalid equation: " + e.message); return; }
+
+    const fa = f(a), fb = f(b);
+    if (fa * fb > 0) {
+      showError(`f(a) = ${fa.toFixed(4)}, f(b) = ${fb.toFixed(4)} — same sign! No guaranteed root in [${a}, ${b}].`);
+      return;
+    }
+
+    let c = a, iter = 0, rows = [], maxIter = 100;
+    const initInterval = b - a;
+
+    while ((b - a) >= tol && iter < maxIter) {
+      c = (a + b) / 2;
+      const fc = f(c);
+      iter++;
+      rows.push({ iter, a, b, c, fa: f(a), fc, interval: b - a });
+
+      if (Math.abs(fc) < 1e-12) break;
+      if (f(a) * fc < 0) b = c;
+      else a = c;
+    }
+
+    // Final root
+    c = (a + b) / 2;
+    const finalErr = (b - a);
+
+    // Show banner
+    banner.className = 'success';
+    banner.innerHTML = `✅ Root found in ${iter} iteration${iter!==1?'s':''}
+      <span class="root-val">x ≈ ${c.toFixed(8)}</span>`;
+    banner.style.display = 'block';
+
+    // Stats
+    document.getElementById('stat-root').textContent = c.toFixed(6);
+    document.getElementById('stat-iter').textContent = iter;
+    document.getElementById('stat-err').textContent = finalErr.toExponential(2);
+    stats.classList.add('show');
+
+    // Table
+    rows.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      if (i === rows.length - 1) tr.classList.add('root-row');
+      tr.innerHTML = `
+        <td>${r.iter}</td>
+        <td>${fmt(r.a)}</td>
+        <td>${fmt(r.b)}</td>
+        <td class="root-mark">${fmt(r.c)}</td>
+        <td class="${r.fa>=0?'pos':'neg'}">${fmt(r.fa,5)}</td>
+        <td class="${r.fc>=0?'pos':'neg'}">${fmt(r.fc,5)}</td>
+        <td>${r.interval.toExponential(3)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Convergence bars
+    const convWrap = document.getElementById('conv-wrap');
+    convWrap.innerHTML = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.7rem;color:var(--muted);margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.1em;">Interval Convergence</div>';
+    const shown = rows.slice(0, Math.min(rows.length, 8));
+    shown.forEach(r => {
+      const pct = Math.min(100, (1 - r.interval / initInterval) * 100);
+      convWrap.innerHTML += `
+        <div class="conv-label"><span>Iter ${r.iter}</span><span>${r.interval.toExponential(3)}</span></div>
+        <div class="conv-bar-bg"><div class="conv-bar-fill" style="width:${pct}%"></div></div>
+      `;
+    });
+
+    tcard.classList.remove('hidden');
+  }
+
+  function showError(msg) {
+    const banner = document.getElementById('result-banner');
+    banner.className = 'error';
+    banner.textContent = '❌ ' + msg;
+    banner.style.display = 'block';
+  }
+</script>
+</body>
+</html>
